@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
+from sqlalchemy.orm import backref
 
 
 app = Flask(__name__)
@@ -17,6 +18,13 @@ migrate = Migrate(app, db)
 @app.route('/home')
 def home():
     return 'This is about one to one relationship!!'
+######################## Association_Table #######################
+TaskSkills = db.Table('task_skills',
+                        db.Column('id', db.Integer, primary_key=True),
+                        db.Column('task_id', db.Integer, db.ForeignKey('task.id')),
+                        db.Column('skill_id', db.Integer, db.ForeignKey('skill.id'))
+
+)
 
 
 ###########################   Model  ############################
@@ -24,7 +32,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     email = db.Column(db.String(50))
-    assign_task = db.relationship('Task', backref='user', lazy=True)
+    assign_task = db.relationship('Task',backref='user', lazy=True)
     def __init__(self, name, email):
         self.name=name
         self.email=email
@@ -36,12 +44,11 @@ class Task(db.Model):
     name = db.Column(db.String(50))
     objective = db.Column(db.String(120))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    skill_id = db.Column(db.Integer, db.ForeignKey('skill.id'))
+    skills = db.relationship('Skill',secondary=TaskSkills ,lazy='subquery' ,backref=db.backref('tasks', lazy=True))
     def __init__(self, name, objective, user_id, skill_id):
         self.name=name
         self.objective=objective
         self.user_id=user_id
-        self.skill_id=skill_id
     def __repr__(self):
         return str(self.name)
 
@@ -49,8 +56,7 @@ class Skill(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     code = db.Column(db.String(20))
-    task = db.relationship('Task', backref='skill', lazy=True)
-    def __init__(self, name, code):
+    def __init__(self, name, code,task_id):
         self.name=name
         self.code=code
     def __repr__(self):
