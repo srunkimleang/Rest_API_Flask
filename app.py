@@ -67,19 +67,19 @@ class Skill(db.Model):
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = User
-    assign_task = ma.Nested("TaskSchema", many=True, only=("name","objective",'id', "skill", "skill_id"))
+    assign_task = ma.Nested("TaskSchema", many=True, only=("name","objective",'id'))
 
 class TaskSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Task
         include_fk=True
     user = ma.Nested('UserSchema', many=False, only=('name','email'))
-    skill = ma.Nested('SkillSchema', many=False,  only=('name','code'))
+    skills = ma.Nested('SkillSchema', many=True,  only=('name','code'))
 
 class SkillSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Skill
-    task = ma.Nested('TaskSchema', many=True, only=('name','objective',"id"))
+    tasks = ma.Nested('TaskSchema', many=True, only=('name',"id"))
 
 
 #########################   POST_Method  #########################
