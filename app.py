@@ -1,3 +1,4 @@
+from typing import NewType
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
@@ -13,6 +14,10 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 migrate = Migrate(app, db)
 
+
+def get_id_list_from_object_list(object_list):
+    List = [obj['id'] for obj in object_list]
+    return List
 
 @app.route('/')
 @app.route('/home')
@@ -45,7 +50,7 @@ class Task(db.Model):
     objective = db.Column(db.String(120))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     skills = db.relationship('Skill',secondary=TaskSkills ,lazy='subquery' ,backref=db.backref('tasks', lazy=True))
-    def __init__(self, name, objective, user_id, skill_id):
+    def __init__(self, name, objective, user_id):
         self.name=name
         self.objective=objective
         self.user_id=user_id
@@ -53,10 +58,11 @@ class Task(db.Model):
         return str(self.name)
 
 class Skill(db.Model):
+    __tablename__ = "skill"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     code = db.Column(db.String(20))
-    def __init__(self, name, code,task_id):
+    def __init__(self, name, code):
         self.name=name
         self.code=code
     def __repr__(self):
@@ -74,7 +80,7 @@ class TaskSchema(ma.SQLAlchemyAutoSchema):
         model = Task
         include_fk=True
     user = ma.Nested('UserSchema', many=False, only=('name','email'))
-    skills = ma.Nested('SkillSchema', many=True,  only=('name','code'))
+    skills = ma.Nested('SkillSchema', many=True,  only=('name','code','id'))
 
 class SkillSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -105,11 +111,16 @@ def create_task():
     user = User.query.get(user_id)
     if not user:
         return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
-    skill_id = request.json['skill_id']
-    skill = Skill.query.get(skill_id)
-    if not skill:
-        return jsonify({"message": f"Skill's id={skill_id} doesn't exist."}), 400
-    new_task= Task(name, objective, user_id, skill_id)
+    # if not skill:
+    #     return jsonify({"message": f"Skill's id={skill_id} doesn't exist."}), 400
+    # skills = request.json['skills_id']
+    # skills = Skill.query.filter_by(id = skills_id)
+
+    # skill_id = request.json.get('skill_id')
+    # skills = Skill.query.filter_by(id=skill_id)
+
+    # skills = get_id_list_from_object_list(skill_obj_list)
+    new_task= Task(name, objective, user_id)
     db.session.add(new_task)
     db.session.commit()
     return jsonify({'message': 'Task is created.'}), 200
@@ -128,6 +139,16 @@ def create_skill():
     else:
         return jsonify({"message": "Skill is already existed."}), 400
 
+# @app.route('/task_skills', methods=['POST'])
+# def create_task_skills():
+#     task_id = request.json['task_id']
+#     skill_id = request.json['skill_id']
+#     task = Task.query.filter_by(id=task_id).first()
+#     skill = Skill.query.filter_by(id=skill_id).first()
+#     statement = TaskSkills.insert().values(task, skill)
+#     db.session.execute(statement)
+#     db.session.commit()
+#     return jsonify({"message": "Task_skills is created."})
 
 #########################  GET_All_Method  ############################
 ###Get_User###
@@ -143,8 +164,11 @@ def all_user():
 @app.route('/user/<id>', methods=['GET'])
 def single_user(id):
     user = User.query.get(id)
-    user_schema = UserSchema()
-    return user_schema.jsonify(user), 200
+    if user:
+        user_schema = UserSchema()
+        return user_schema.jsonify(user), 200
+    else:
+        return jsonify({"message": f"User's  id={id} doesn't exit."}),400
 @app.route('/user/<id>/task', methods=['GET'])
 def all_task_in_user(id):
     tasks = []
@@ -161,8 +185,11 @@ def all_task():
 @app.route('/task/<id>', methods=['GET'])
 def single_task(id):
     task = Task.query.get(id)
-    task_schema = TaskSchema()
-    return task_schema.jsonify(task), 200
+    if task:
+        task_schema = TaskSchema()
+        return task_schema.jsonify(task), 200
+    else:
+        return jsonify({"message": f"Task's id={id} doesn't exit."}),400
 ###Get_Skill###
 @app.route('/skill', methods=['GET'])
 def all_skill():
@@ -174,8 +201,11 @@ def all_skill():
 @app.route('/skill/<id>', methods=['GET'])
 def single_skill(id):
     skill = Skill.query.get(id)
-    skill_schema = SkillSchema()
-    return skill_schema.jsonify(skill), 200
+    if skill:
+        skill_schema = SkillSchema()
+        return skill_schema.jsonify(skill), 200
+    else:
+        return jsonify({"message": f"Skill's id={id} doesn't exit."}),400
 
 @app.route('/skill/<id>/task', methods=['GET'])
 def all_task_have_skill(id):
@@ -205,14 +235,14 @@ def update_task(id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
-    skill_id = request.json['skill_id']
-    skill = Skill.query.get(skill_id)
-    if not skill:
-        return jsonify({"message": f"Skill's id={skill_id} doesn't exist."}), 400
+    # skill_id = request.json['skill_id']
+    # skill = Skill.query.get(skill_id)
+    # if not skill:
+    #     return jsonify({"message": f"Skill's id={skill_id} doesn't exist."}), 400
     update_task.name = name
     update_task.objective = objective
     update_task.user_id = user_id
-    update_task.skill_id = skill_id
+    # update_task.skill_id = skill_id
     db.session.commit()
     task_schema = TaskSchema()
     return task_schema.jsonify(update_task), 200
@@ -264,5 +294,13 @@ def delete_skill(id):
         skill_schema = SkillSchema()
         return skill_schema.jsonify(delete_skill), 200
 
+
+
+############################################  Testing #############################
+# @app.route("/testing", methods=['GET'])
+# def testing():
+#     # skill_id = request.json.get('skill_id')
+#     skills = Skill.query.get(id=4)
+#     return SkillSchema.jsonify(skills)
 if __name__ == '__main__':
     app.run(debug=True)
