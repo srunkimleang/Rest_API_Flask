@@ -1,87 +1,12 @@
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
-from flask_migrate import Migrate
-from sqlalchemy.orm import backref
-
-
-
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost/testing'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///onetoone.db'
-app.config["SQLALCHEMY_TRACK_MODIFICATION"] = False
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
-migrate = Migrate(app, db)
-
+from app import app,db
+from flask import request, jsonify
+from app.models import User, Task, Skill
+from app.models_schema import TaskSchema, SkillSchema, UserSchema
 
 @app.route('/')
 @app.route('/home')
 def home():
     return 'This is about one to one relationship!!'
-######################## Association_Table #######################
-TaskSkills = db.Table('task_skills',
-                        db.Column('id', db.Integer, primary_key=True),
-                        db.Column('task_id', db.Integer, db.ForeignKey('task.id')),
-                        db.Column('skill_id', db.Integer, db.ForeignKey('skill.id'))
-
-)
-###########################   Model  ############################
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    email = db.Column(db.String(50))
-    assign_task = db.relationship('Task',backref='user', lazy=True)
-    def __init__(self, name, email):
-        self.name=name
-        self.email=email
-    def __repr__(self):
-        return str(self.name)
-
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    objective = db.Column(db.String(120))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    skills = db.relationship('Skill',secondary=TaskSkills ,lazy='subquery' ,backref=db.backref('tasks', lazy=True))
-    def __init__(self, name, objective, user_id):
-        self.name=name
-        self.objective=objective
-        self.user_id=user_id
-    def __repr__(self):
-        return str(self.name)
-
-class Skill(db.Model):
-    __tablename__ = "skill"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    code = db.Column(db.String(20))
-    def __init__(self, name, code):
-        self.name=name
-        self.code=code
-    def __repr__(self):
-        return str(self.name)
-
-
-##########################  ModelSchema  #########################
-class UserSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = User
-    assign_task = ma.Nested("TaskSchema", many=True, only=("name","objective",'id'))
-
-class TaskSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Task
-        include_fk=True
-    user = ma.Nested('UserSchema', many=False, only=('name','email'))
-    skills = ma.Nested('SkillSchema', many=True,  only=('name','code','id'))
-
-class SkillSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Skill
-    tasks = ma.Nested('TaskSchema', many=True, only=('name',"id", 'objective'))
-
-
 #########################   POST_Method  #########################
 def get_id_list_from_object_list(object_list):
     List = [obj['id'] for obj in object_list]
@@ -277,5 +202,3 @@ def delete_skill(id):
 #     # skill_id = request.json.get('skill_id')
 #     skills = Skill.query.get(id=4)
 #     return SkillSchema.jsonify(skills)
-if __name__ == '__main__':
-    app.run(debug=True)
