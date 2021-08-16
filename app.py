@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from sqlalchemy.orm import backref
 
 
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost/testing'
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///onetoone.db'
@@ -13,10 +14,6 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 migrate = Migrate(app, db)
 
-
-def get_id_list_from_object_list(object_list):
-    List = [obj['id'] for obj in object_list]
-    return List
 
 @app.route('/')
 @app.route('/home')
@@ -29,8 +26,6 @@ TaskSkills = db.Table('task_skills',
                         db.Column('skill_id', db.Integer, db.ForeignKey('skill.id'))
 
 )
-
-
 ###########################   Model  ############################
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -84,60 +79,50 @@ class TaskSchema(ma.SQLAlchemyAutoSchema):
 class SkillSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Skill
-    tasks = ma.Nested('TaskSchema', many=True, only=('name',"id"))
+    tasks = ma.Nested('TaskSchema', many=True, only=('name',"id", 'objective'))
 
 
 #########################   POST_Method  #########################
+def get_id_list_from_object_list(object_list):
+    List = [obj['id'] for obj in object_list]
+    return List
+
 @app.route('/user', methods=['POST'])
 def create_user():
     name = request.json['name']
     email = request.json['email']
-    check_name = User.query.filter_by(name=name)
-    check_email = User.query.filter_by(email=email)
-    if check_name is None and check_email is None:
-        new_user= User(name, email)
-        db.session.add(new_user)
-        db.session.commit()
-        return jsonify({'message': 'User is created.'}), 200
-    else:
-        return jsonify({"message": "User is already taken."}), 400
+    new_user= User(name, email)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'message': 'User is created.'}), 200
 
 @app.route('/task', methods=['POST'])
 def create_task():
     name = request.json['name']
-    check_name = Task.query.filter_by(name=name)
-    if check_name is None:
-        objective = request.json['objective']
-        user_id = request.json['user_id']
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
-        skill_obj_list = request.json.get('skill')
-        skill_list = get_id_list_from_object_list(skill_obj_list)
-        new_task= Task(name, objective, user_id)
-        # To add skills
-        for i in skill_list:
-            skill = Skill.query.get(i)
-            new_task.skills.append(skill)
-        db.session.add(new_task)
-        db.session.commit()
-        return jsonify({'message': 'Task is created.'}), 200
-    else:
-        return jsonify({"message": "This task is already created."})
+    objective = request.json['objective']
+    user_id = request.json['user_id']
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
+    skill_obj_list = request.json.get('skill') #get list object from json form of skill
+    List_of_skill_id = [obj['id'] for obj in skill_obj_list]
+    new_task= Task(name, objective, user_id)
+    # To add skills to Model Task
+    for i in List_of_skill_id:
+        skill = Skill.query.get(i)
+        new_task.skills.append(skill)
+    db.session.add(new_task)
+    db.session.commit()
+    return jsonify({'message': 'Task is created.'}), 200
 
 @app.route('/skill', methods=['POST'])
 def create_skill():
     name = request.json['name']
     code = request.json['code']
-    check_name = Skill.query.filter_by(name=name)
-    check_code = Skill.query.filter_by(code=code)
-    if check_name is None and check_code is None:
-        new_skill= Skill(name, code)
-        db.session.add(new_skill)
-        db.session.commit()
-        return jsonify({'message': 'Skill is created.'}), 200
-    else:
-        return jsonify({"message": "Skill is already existed."}), 400
+    new_skill= Skill(name, code)
+    db.session.add(new_skill)
+    db.session.commit()
+    return jsonify({'message': 'Skill is created.'}), 200
 
 
 #########################  GET_All_Method  ############################
@@ -161,10 +146,14 @@ def single_user(id):
         return jsonify({"message": f"User's  id={id} doesn't exit."}),400
 @app.route('/user/<id>/task', methods=['GET'])
 def all_task_in_user(id):
-    tasks = []
-    for task in Task.query.filter_by(user_id=id):
-        tasks.append(task.name)
-    return jsonify(tasks), 200
+    user = User.query.get(id)
+    if not user:
+        return jsonify({"message": f"User's id={id} doesn't exist."})
+    else:
+        tasks = []
+        for task in Task.query.filter_by(user_id=id):
+            tasks.append(task.name)
+        return jsonify(tasks), 200
 ###Get_Task###
 @app.route('/task', methods=['GET'])
 def all_task():
@@ -225,10 +214,6 @@ def update_task(id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
-    # skill_id = request.json['skill_id']
-    # skill = Skill.query.get(skill_id)
-    # if not skill:
-    #     return jsonify({"message": f"Skill's id={skill_id} doesn't exist."}), 400
     update_task.name = name
     update_task.objective = objective
     update_task.user_id = user_id
@@ -286,7 +271,7 @@ def delete_skill(id):
 
 
 
-############################################  Testing #############################
+############################################  Testing  #################################
 # @app.route("/testing", methods=['GET'])
 # def testing():
 #     # skill_id = request.json.get('skill_id')
