@@ -106,24 +106,25 @@ def create_user():
 @app.route('/task', methods=['POST'])
 def create_task():
     name = request.json['name']
-    objective = request.json['objective']
-    user_id = request.json['user_id']
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
-    # if not skill:
-    #     return jsonify({"message": f"Skill's id={skill_id} doesn't exist."}), 400
-    # skills = request.json['skills_id']
-    # skills = Skill.query.filter_by(id = skills_id)
-
-    # skill_id = request.json.get('skill_id')
-    # skills = Skill.query.filter_by(id=skill_id)
-
-    # skills = get_id_list_from_object_list(skill_obj_list)
-    new_task= Task(name, objective, user_id)
-    db.session.add(new_task)
-    db.session.commit()
-    return jsonify({'message': 'Task is created.'}), 200
+    check_name = Task.query.filter_by(name=name)
+    if check_name is None:
+        objective = request.json['objective']
+        user_id = request.json['user_id']
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
+        skill_obj_list = request.json.get('skill')
+        skill_list = get_id_list_from_object_list(skill_obj_list)
+        new_task= Task(name, objective, user_id)
+        # To add skills
+        for i in skill_list:
+            skill = Skill.query.get(i)
+            new_task.skills.append(skill)
+        db.session.add(new_task)
+        db.session.commit()
+        return jsonify({'message': 'Task is created.'}), 200
+    else:
+        return jsonify({"message": "This task is already created."})
 
 @app.route('/skill', methods=['POST'])
 def create_skill():
@@ -139,16 +140,6 @@ def create_skill():
     else:
         return jsonify({"message": "Skill is already existed."}), 400
 
-# @app.route('/task_skills', methods=['POST'])
-# def create_task_skills():
-#     task_id = request.json['task_id']
-#     skill_id = request.json['skill_id']
-#     task = Task.query.filter_by(id=task_id).first()
-#     skill = Skill.query.filter_by(id=skill_id).first()
-#     statement = TaskSkills.insert().values(task, skill)
-#     db.session.execute(statement)
-#     db.session.commit()
-#     return jsonify({"message": "Task_skills is created."})
 
 #########################  GET_All_Method  ############################
 ###Get_User###
