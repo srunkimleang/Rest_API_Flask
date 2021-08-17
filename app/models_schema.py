@@ -10,7 +10,7 @@ class TaskSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Task
         include_fk=True
-    user = ma.Nested('UserSchema', many=False, only=('name','email'))
+    user = ma.Nested('UserSchema', many=False, only=('name','email','id'))
     skills = ma.Nested('SkillSchema', many=True,  only=('name','code','id'))
 
 class SkillSchema(ma.SQLAlchemyAutoSchema):
