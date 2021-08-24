@@ -168,7 +168,7 @@ def update_task(id):
         return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
     skill_obj_list = request.json.get('skills') #get list object from json form of skill
     list_of_skill_id = [obj['id'] for obj in skill_obj_list]
-    # To add skills to Model Task
+    # To add skills to model Task
     for skill_id in list_of_skill_id:
         skill = Skill.query.get(skill_id)
         update_task.skills.append(skill)

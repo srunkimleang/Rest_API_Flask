@@ -12,13 +12,13 @@ class TaskSchema(ma.SQLAlchemyAutoSchema):
         include_fk=True
     user = ma.Nested('UserSchema', many=False, only=('name','email'))
     skills = ma.Nested('SkillSchema', many=True,  only=('name','code','id'))
-    # task_skills = ma.Nested('TaskSkillsSchema', many=True, exclude=('task_id', 'skill_id', 'task', 'id'))
+    task_skills = ma.Nested('TaskSkillsSchema', many=True, exclude=('task_id', 'skill_id', 'task', 'id'))
 
 class SkillSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Skill
     tasks = ma.Nested('TaskSchema', many=True, only=('name',"id", 'objective'))
-    # task_skills = ma.Nested('TaskSkillsSchema', many=True, exclude=('skill_id', 'task_id','skill', 'id'))
+    task_skills = ma.Nested('TaskSkillsSchema', many=True, exclude=('skill_id', 'task_id','skill', 'id'))
 
 class TaskSkillsSchema(ma.SQLAlchemyAutoSchema):
     class Meta:

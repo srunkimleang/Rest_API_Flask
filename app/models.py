@@ -52,4 +52,4 @@ class TaskSkills(db.Model):  ## similar to association table of taskskills(many 
     task = db.relationship('Task', backref=db.backref('task_skills'))
     skill_id = db.Column(db.Integer, db.ForeignKey('skill.id'))
     skill = db.relationship('Skill', backref=db.backref('task_skills'))
-    skill_status = db.Column(db.String(50), default='Primary')
+    skill_status = db.Column(db.String(50), default='1')
