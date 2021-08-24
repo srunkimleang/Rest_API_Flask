@@ -1,7 +1,7 @@
 from app import app,db
 from flask import request, jsonify
-from app.models import User, Task, Skill
-from app.models_schema import TaskSchema, SkillSchema, UserSchema
+from app.models import TaskSkills, User, Task, Skill
+from app.models_schema import TaskSchema, SkillSchema, TaskSkillsSchema, UserSchema
 
 @app.route('/')
 @app.route('/home')
@@ -196,6 +196,7 @@ def update_skill(id):
     skill_schema = SkillSchema()
     return skill_schema.jsonify(update_skill), 200
 
+
 ##########################   DELETE_Method   ##############################
 @app.route('/user/<id>', methods=['DELETE'])
 def delete_user(id):
@@ -226,3 +227,50 @@ def delete_skill(id):
         db.session.delete(delete_skill)
         db.session.commit()
         return jsonify({"message": "Skill is deleted."}), 200
+
+
+#################################   Status_update   ####################################
+@app.route('/status/skill/primary', methods=['GET'])
+def get_all_skill_status_primary():
+    task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
+    skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+    return jsonify(skills_status), 200
+    
+@app.route('/status/skill/secondary', methods=['GET'])
+def get_all_skill_status_secondary():
+    task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
+    skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+    return jsonify(skills_status), 200
+
+@app.route('/status/skill/<id>', methods=['GET'])
+def get_single_skill_status(id):
+    skill_status = TaskSkills.query.filter_by(skill_id=id).first()
+    return TaskSkillsSchema(many=False, exclude=('skill', 'task')).jsonify(skill_status), 200
+
+@app.route('/status/skill/<id>/update', methods=['PUT'])
+def update_status_skill(id):
+    skill_status_update = TaskSkills.query.filter_by(skill_id=id).first()
+    check_skill_id = Skill.query.get(id)
+    if check_skill_id:
+        if skill_status_update.skill_status == "primary":
+            skill_status_update.skill_status = "secondary"
+            db.session.commit()
+            return jsonify('Alter skill_status is successful to secondary skill.'), 200
+        if skill_status_update.skill_status == "secondary":
+            skill_status_update.skill_status = "primary"
+            db.session.commit()
+            return jsonify('Alter skill_status is successful to primary skill.'), 200
+        else:
+            return jsonify('failed'), 400
+    else:
+        return jsonify({"message": f"Skill's id={id} doesn't exist."}), 400
+
+# @app.route('/task/<id>/status', methods=['GET'])
+# def update_skill_status_in_task(id):
+#     task_skill_status_update = Task.query.get(id)
+#     if task_skill_status_update:
+#         if Task.task_skills ==:
+#             task_schema = TaskSchema()
+#             return task_schema.jsonify('success'), 200
+#     else:
+#         return jsonify({"message": f"Task's id={id} doesn't exit."}),400
