@@ -229,13 +229,13 @@ def delete_skill(id):
         return jsonify({"message": "Skill is deleted."}), 200
 
 
-#################################   Status_update   ####################################
+#################################   Skill_Status   ####################################
 @app.route('/status/skill/primary', methods=['GET'])
 def get_all_skill_status_primary():
     task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
     skills_status = TaskSkillsSchema(many=True).dump(task_skill)
     return jsonify(skills_status), 200
-    
+
 @app.route('/status/skill/secondary', methods=['GET'])
 def get_all_skill_status_secondary():
     task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
@@ -249,28 +249,50 @@ def get_single_skill_status(id):
 
 @app.route('/status/skill/<id>/update', methods=['PUT'])
 def update_status_skill(id):
-    skill_status_update = TaskSkills.query.filter_by(skill_id=id).first()
+    skill_status_update = TaskSkills.query.filter_by(skill_id=id).all()
     check_skill_id = Skill.query.get(id)
     if check_skill_id:
-        if skill_status_update.skill_status == "primary":
-            skill_status_update.skill_status = "secondary"
-            db.session.commit()
-            return jsonify('Alter skill_status is successful to secondary skill.'), 200
-        if skill_status_update.skill_status == "secondary":
-            skill_status_update.skill_status = "primary"
-            db.session.commit()
-            return jsonify('Alter skill_status is successful to primary skill.'), 200
-        else:
-            return jsonify('failed'), 400
+        for i in skill_status_update:
+            if i.skill_status == 'secondary':
+                i.skill_status = "primary"
+                # db.session.commit()
+            elif i.skill_status == 'primary':
+                i.skill_status = 'secondary'
+                # db.session.commit()
+            else:
+                return jsonify({"message": f"{i.skill_status} doesn't exist."}), 400
+        db.session.commit()
+        return jsonify('Alter skill_status is successful.'), 200
     else:
         return jsonify({"message": f"Skill's id={id} doesn't exist."}), 400
 
-# @app.route('/task/<id>/status', methods=['GET'])
-# def update_skill_status_in_task(id):
-#     task_skill_status_update = Task.query.get(id)
-#     if task_skill_status_update:
-#         if Task.task_skills ==:
-#             task_schema = TaskSchema()
-#             return task_schema.jsonify('success'), 200
-#     else:
-#         return jsonify({"message": f"Task's id={id} doesn't exit."}),400
+@app.route('/task<int:task_id>/change_skill_status<int:skill_id>', methods=['PUT'])
+def update_skill_status_in_task(task_id, skill_id):
+    task = Task.query.filter_by(id=task_id).first()
+    if task is None:
+        return jsonify({"message": f"Task's id={task_id} doesn't exist."}), 400
+    status = TaskSkills.query.filter_by(skill_id = skill_id, task_id=task_id).first()
+    if status is None:
+        return jsonify({"message": f"Task's id={task_id} doesn't skill's id={skill_id}"}), 400
+
+    if status.skill_status == "primary":
+        status.skill_status = 'secondary'
+        # db.session.commit()
+        return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to secondary."}), 200
+    elif status.skill_status == 'secondary':
+        status.skill_status = "primary"
+        # db.session.commit()
+        return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to primary."}), 200
+    db.session.commit()
+    
+@app.route('/status/skill', methods=['GET'])
+def status():
+    status = request.json['status']
+    if status == '1':
+        task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
+        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+        return jsonify(skills_status), 200
+    elif status == '2':
+        task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
+        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+        return jsonify(skills_status), 200

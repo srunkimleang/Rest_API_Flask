@@ -2,7 +2,7 @@ from sqlalchemy.orm import backref
 from app import db
 
 
-# TaskSkills = db.Table('task_skills',
+# TaskSkills = db.Table('task_skills',                                             ### many to many table of association
 #                         db.Column('id', db.Integer, primary_key=True),
 #                         db.Column('task_id', db.Integer, db.ForeignKey('task.id')),
 #                         db.Column('skill_id', db.Integer, db.ForeignKey('skill.id'))
@@ -45,11 +45,11 @@ class Skill(db.Model):
     def __repr__(self):
         return str(self.name)
 
-class TaskSkills(db.Model):  ## similar to association table of taskskills(many to many)
+class TaskSkills(db.Model):  ## similar to association table of taskskills(many to many) but it is many to one
     __tablename__='task_skills'
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
     task = db.relationship('Task', backref=db.backref('task_skills'))
     skill_id = db.Column(db.Integer, db.ForeignKey('skill.id'))
     skill = db.relationship('Skill', backref=db.backref('task_skills'))
-    skill_status = db.Column(db.String(50), default='1')
+    skill_status = db.Column(db.String(50), default='primary')
