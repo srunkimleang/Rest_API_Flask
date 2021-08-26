@@ -244,8 +244,22 @@ def get_all_skill_status_secondary():
 
 @app.route('/status/skill/<id>', methods=['GET'])
 def get_single_skill_status(id):
-    skill_status = TaskSkills.query.filter_by(skill_id=id).first()
+    skill_status = TaskSkills.query.filter_by(skill_id=id).all()
     return TaskSkillsSchema(many=False, exclude=('skill', 'task')).jsonify(skill_status), 200
+
+@app.route('/status/skill', methods=['GET'])
+def status():
+    status = request.json['status']
+    if status == '2':
+        task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
+        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+        return jsonify(skills_status), 200
+    elif status == '1':
+        task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
+        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+        return jsonify(skills_status), 200
+    else:
+        return jsonify({"message": f"There's no status for {status}"})
 
 @app.route('/status/skill/<id>/update', methods=['PUT'])
 def update_status_skill(id):
@@ -269,6 +283,7 @@ def update_status_skill(id):
 @app.route('/task<int:task_id>/change_skill_status<int:skill_id>', methods=['PUT'])
 def update_skill_status_in_task(task_id, skill_id):
     task = Task.query.filter_by(id=task_id).first()
+
     if task is None:
         return jsonify({"message": f"Task's id={task_id} doesn't exist."}), 400
     status = TaskSkills.query.filter_by(skill_id = skill_id, task_id=task_id).first()
@@ -277,22 +292,10 @@ def update_skill_status_in_task(task_id, skill_id):
 
     if status.skill_status == "primary":
         status.skill_status = 'secondary'
-        # db.session.commit()
+        db.session.commit()
         return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to secondary."}), 200
     elif status.skill_status == 'secondary':
         status.skill_status = "primary"
-        # db.session.commit()
+        db.session.commit()
         return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to primary."}), 200
-    db.session.commit()
     
-@app.route('/status/skill', methods=['GET'])
-def status():
-    status = request.json['status']
-    if status == '1':
-        task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
-        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
-        return jsonify(skills_status), 200
-    elif status == '2':
-        task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
-        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
-        return jsonify(skills_status), 200
