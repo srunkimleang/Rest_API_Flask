@@ -1,3 +1,4 @@
+from sqlalchemy.orm import joinedload
 from app import app,db
 from flask import request, jsonify
 from app.models import TaskSkills, User, Task, Skill
@@ -93,10 +94,6 @@ def all_task_in_user(id):
     if not user:
         return jsonify({"message": f"User's id={id} doesn't exist."}), 400
     else:
-        # tasks = []
-        # for task in Task.query.filter_by(user_id=id):
-        #     tasks.append(task.name)
-        # return jsonify(tasks), 200
         task = Task.query.filter_by(user_id=id).all()
         tasks = TaskSchema(many=True, only=('id', 'name', 'objective','user')).dump(task)
         return jsonify({f"Tasks with User's id={id}": tasks}), 200
@@ -247,19 +244,36 @@ def get_single_skill_status(id):
     skill_status = TaskSkills.query.filter_by(skill_id=id).all()
     return TaskSkillsSchema(many=False, exclude=('skill', 'task')).jsonify(skill_status), 200
 
-@app.route('/status/skill', methods=['GET'])
-def status():
-    status = request.json['status']
-    if status == '2':
-        task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
-        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
-        return jsonify(skills_status), 200
-    elif status == '1':
-        task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
-        skills_status = TaskSkillsSchema(many=True).dump(task_skill)
-        return jsonify(skills_status), 200
-    else:
-        return jsonify({"message": f"There's no status for {status}"})
+@app.route('/status/skill', methods=['GET', 'POST'])
+def create_task_skills():
+    if request.method == 'GET':
+        status = request.json['skill_status']
+        if status == '2':
+            task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
+            skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+            return jsonify(skills_status), 200
+        elif status == '1':
+            task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
+            skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+            return jsonify(skills_status), 200
+        else:
+            return jsonify({"message": f"There's no status for {status}"}), 400
+    elif request.method == "POST":
+        task_id = request.json['task_id']
+        skill_id = request.json['skill_id']
+        skill_status = request.json['skill_status']
+        if skill_status == '1':
+            skill_status = "primary"
+        else:
+            skill_status = "secondary"
+        checking = TaskSkills.query.filter_by(task_id=task_id, skill_id=skill_id)
+        if checking is None:
+            task_skills = TaskSkills(task_id, skill_id, skill_status)
+            db.session.add(task_skills)
+            db.session.commit()
+            return jsonify({"message": "Task_skills is created."}), 200
+        else:
+            return jsonify({"message": f"Task's id={task_id} already had skill's id={skill_id}"})
 
 @app.route('/status/skill/<id>/update', methods=['PUT'])
 def update_status_skill(id):
@@ -286,16 +300,15 @@ def update_skill_status_in_task(task_id, skill_id):
 
     if task is None:
         return jsonify({"message": f"Task's id={task_id} doesn't exist."}), 400
-    status = TaskSkills.query.filter_by(skill_id = skill_id, task_id=task_id).first()
-    if status is None:
+    task_skills = TaskSkills.query.filter_by(skill_id = skill_id, task_id=task_id).first()
+    if task_skills is None:
         return jsonify({"message": f"Task's id={task_id} doesn't skill's id={skill_id}"}), 400
 
-    if status.skill_status == "primary":
-        status.skill_status = 'secondary'
+    if task_skills.skill_status == "primary":
+        task_skills.skill_status = 'secondary'
         db.session.commit()
         return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to secondary."}), 200
-    elif status.skill_status == 'secondary':
-        status.skill_status = "primary"
+    elif task_skills.skill_status == 'secondary':
+        task_skills.skill_status = "primary"
         db.session.commit()
         return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to primary."}), 200
-    
