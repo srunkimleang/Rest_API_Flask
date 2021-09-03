@@ -7,9 +7,6 @@ function UserList(props) {
                     <div key= {user.id}>
                         <h2>{user.name}</h2>
                         <p>{user.email}</p>
-                        {/* <p>{user.assgin_task}</p> */}
-
-
                     </div>
                 )
             })}

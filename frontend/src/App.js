@@ -7,7 +7,7 @@ function App() {
   const [users, setUsers] = useState([])
 
   useEffect(() => {
-    fetch("http://localhost:5000/user",{
+    fetch("/user",{
       "method": "GET",
       headers: {
         'Content-Type': 'application/json'
@@ -22,7 +22,6 @@ function App() {
   return (
     <div className="App">
       <h1>Flask and ReactJS Course</h1>
-
         <UserList users= {users}/>
     </div>
   );
