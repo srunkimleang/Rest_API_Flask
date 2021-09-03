@@ -5,9 +5,12 @@ from app.models import TaskSkills, User, Task, Skill
 from app.models_schema import TaskSchema, SkillSchema, TaskSkillsSchema, UserSchema
 
 @app.route('/')
-@app.route('/home')
+@app.route('/home', methods = ['GET'])
 def home():
-    return 'Hello, This is our home page!!'
+    return {
+        'title': 'testing react with flask',
+        'description': "demo testing"
+    }
 #########################   POST_Method  #########################
 @app.route('/user', methods=['POST'])
 def create_user():
@@ -75,7 +78,7 @@ def all_user():
     all_user = User.query.all()
     users_schema = UserSchema(many=True)
     users = users_schema.dump(all_user)
-    return jsonify({"Users": users}), 200
+    return jsonify(users), 200
     # users = db.session.query(User).all()
     # all_users = users_schema.dump(users)
     # return jsonify({'users': all_users})
