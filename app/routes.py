@@ -1,7 +1,8 @@
+from sqlalchemy.orm import joinedload
 from app import app,db
 from flask import request, jsonify
-from app.models import User, Task, Skill
-from app.models_schema import TaskSchema, SkillSchema, UserSchema
+from app.models import TaskSkills, User, Task, Skill
+from app.models_schema import TaskSchema, SkillSchema, TaskSkillsSchema, UserSchema
 
 @app.route('/')
 @app.route('/home')
@@ -93,10 +94,6 @@ def all_task_in_user(id):
     if not user:
         return jsonify({"message": f"User's id={id} doesn't exist."}), 400
     else:
-        # tasks = []
-        # for task in Task.query.filter_by(user_id=id):
-        #     tasks.append(task.name)
-        # return jsonify(tasks), 200
         task = Task.query.filter_by(user_id=id).all()
         tasks = TaskSchema(many=True, only=('id', 'name', 'objective','user')).dump(task)
         return jsonify({f"Tasks with User's id={id}": tasks}), 200
@@ -168,7 +165,7 @@ def update_task(id):
         return jsonify({"message": f"User's id={user_id} doesn't exist."}), 400
     skill_obj_list = request.json.get('skills') #get list object from json form of skill
     list_of_skill_id = [obj['id'] for obj in skill_obj_list]
-    # To add skills to Model Task
+    # To add skills to model Task
     for skill_id in list_of_skill_id:
         skill = Skill.query.get(skill_id)
         update_task.skills.append(skill)
@@ -195,6 +192,7 @@ def update_skill(id):
     db.session.commit()
     skill_schema = SkillSchema()
     return skill_schema.jsonify(update_skill), 200
+
 
 ##########################   DELETE_Method   ##############################
 @app.route('/user/<id>', methods=['DELETE'])
@@ -226,3 +224,91 @@ def delete_skill(id):
         db.session.delete(delete_skill)
         db.session.commit()
         return jsonify({"message": "Skill is deleted."}), 200
+
+
+#################################   Skill_Status   ####################################
+@app.route('/status/skill/primary', methods=['GET'])
+def get_all_skill_status_primary():
+    task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
+    skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+    return jsonify(skills_status), 200
+
+@app.route('/status/skill/secondary', methods=['GET'])
+def get_all_skill_status_secondary():
+    task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
+    skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+    return jsonify(skills_status), 200
+
+@app.route('/status/skill/<id>', methods=['GET'])
+def get_single_skill_status(id):
+    skill_status = TaskSkills.query.filter_by(skill_id=id).all()
+    return TaskSkillsSchema(many=False, exclude=('skill', 'task')).jsonify(skill_status), 200
+
+@app.route('/status/skill', methods=['GET', 'POST'])
+def create_task_skills():
+    if request.method == 'GET':
+        status = request.json['skill_status']
+        if status == '2':
+            task_skill = TaskSkills.query.filter_by(skill_status='secondary').all()
+            skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+            return jsonify(skills_status), 200
+        elif status == '1':
+            task_skill = TaskSkills.query.filter_by(skill_status='primary').all()
+            skills_status = TaskSkillsSchema(many=True).dump(task_skill)
+            return jsonify(skills_status), 200
+        else:
+            return jsonify({"message": f"There's no status for {status}"}), 400
+    elif request.method == "POST":
+        task_id = request.json['task_id']
+        skill_id = request.json['skill_id']
+        skill_status = request.json['skill_status']
+        if skill_status == '1':
+            skill_status = "primary"
+        else:
+            skill_status = "secondary"
+        checking = TaskSkills.query.filter_by(task_id=task_id, skill_id=skill_id)
+        if checking is None:
+            task_skills = TaskSkills(task_id, skill_id, skill_status)
+            db.session.add(task_skills)
+            db.session.commit()
+            return jsonify({"message": "Task_skills is created."}), 200
+        else:
+            return jsonify({"message": f"Task's id={task_id} already had skill's id={skill_id}"})
+
+@app.route('/status/skill/<id>/update', methods=['PUT'])
+def update_status_skill(id):
+    skill_status_update = TaskSkills.query.filter_by(skill_id=id).all()
+    check_skill_id = Skill.query.get(id)
+    if check_skill_id:
+        for i in skill_status_update:
+            if i.skill_status == 'secondary':
+                i.skill_status = "primary"
+                # db.session.commit()
+            elif i.skill_status == 'primary':
+                i.skill_status = 'secondary'
+                # db.session.commit()
+            else:
+                return jsonify({"message": f"{i.skill_status} doesn't exist."}), 400
+        db.session.commit()
+        return jsonify('Alter skill_status is successful.'), 200
+    else:
+        return jsonify({"message": f"Skill's id={id} doesn't exist."}), 400
+
+@app.route('/task<int:task_id>/change_skill_status<int:skill_id>', methods=['PUT'])
+def update_skill_status_in_task(task_id, skill_id):
+    task = Task.query.filter_by(id=task_id).first()
+
+    if task is None:
+        return jsonify({"message": f"Task's id={task_id} doesn't exist."}), 400
+    task_skills = TaskSkills.query.filter_by(skill_id = skill_id, task_id=task_id).first()
+    if task_skills is None:
+        return jsonify({"message": f"Task's id={task_id} doesn't skill's id={skill_id}"}), 400
+
+    if task_skills.skill_status == "primary":
+        task_skills.skill_status = 'secondary'
+        db.session.commit()
+        return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to secondary."}), 200
+    elif task_skills.skill_status == 'secondary':
+        task_skills.skill_status = "primary"
+        db.session.commit()
+        return jsonify({"message": f"Successfully alter the skill's id={skill_id} status to primary."}), 200
